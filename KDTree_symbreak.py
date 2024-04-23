@@ -47,18 +47,19 @@ class AGran:
         self.body_tr = np.zeros((self.N_tr,2))
         self.theta_tr = np.linspace(0,2*np.pi,self.N_tr)
 
-        self.marker = np.zeros((20*5,2))
-        theta_marker = np.linspace(0,2*np.pi,20)
+        self.marker = np.zeros((20*8,2))
+        self.theta_marker = np.linspace(0,2*np.pi,20)
 
         for i in range(8):
-            self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(theta_marker)
-            self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(theta_marker)
+            self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker)
+            self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker)
 
 
-        if tracer==True:
+        if tracer:
             self.N = int(rho*(self.Lx*self.Ly-np.pi*self.r_tr**2)/(self.AR*np.pi*self.r0**2))
         else:
             self.N = int(rho*(self.Lx*self.Ly)/(self.AR*np.pi*self.r0**2))
+            # self.k = 0
         # N=10
         self.initialize()
 
@@ -192,14 +193,18 @@ class AGran:
 
 
         # tracer dynamics
-        (Fxtr1,Fytr1) = self.FWCA(self.pos1,self.body_tr,self.k,self.r0*(1+1/self.AR),1)
-        (Fxtr2,Fytr2) = self.FWCA(self.pos2,self.body_tr,self.k,self.r0*(1+1/self.AR),1)
-        (Fxtr0,Fytr0) = self.FWCA(self.pos,self.body_tr,self.k,self.r0*2,1)
-        FX += Fxtr0+Fxtr1+Fxtr2
-        FY += Fytr0+Fytr1+Fytr2
-        TAU += self.Torque(Fxtr1,Fytr1,self.armb1[:,0],self.armb1[:,1])+ self.Torque(Fxtr2,Fytr2,self.armb2[:,0],self.armb2[:,1])
-        VX = -self.mu_tr*np.sum(Fxtr0+Fxtr1+Fxtr2)
-        VY = -self.mu_tr*np.sum(Fytr0+Fytr1+Fytr2)
+        if self.tracer:
+            (Fxtr1,Fytr1) = self.FWCA(self.pos1,self.body_tr,self.k,self.r0*(1+1/self.AR),1)
+            (Fxtr2,Fytr2) = self.FWCA(self.pos2,self.body_tr,self.k,self.r0*(1+1/self.AR),1)
+            (Fxtr0,Fytr0) = self.FWCA(self.pos,self.body_tr,self.k,self.r0*2,1)
+            FX += Fxtr0+Fxtr1+Fxtr2
+            FY += Fytr0+Fytr1+Fytr2
+            TAU += self.Torque(Fxtr1,Fytr1,self.armb1[:,0],self.armb1[:,1])+ self.Torque(Fxtr2,Fytr2,self.armb2[:,0],self.armb2[:,1])
+            VX = -self.mu_tr*np.sum(Fxtr0+Fxtr1+Fxtr2)
+            VY = -self.mu_tr*np.sum(Fytr0+Fytr1+Fytr2)
+        else:
+            VX = 0
+            VY = 0
 
     #     pos_tr[0]-=mu_tr*np.sum(Fxtr0+Fxtr1+Fxtr2)
     #     pos_tr[1]-=mu_tr*np.sum(Fytr0+Fytr1+Fytr2)
@@ -212,10 +217,11 @@ class AGran:
         else:
             self.pos_tr[0] +=VX*self.dt
             self.pos_tr[1] +=VY*self.dt
+
             
 
-        self.VX_avg = (1-1/self.T)*self.VX_avg+VX
-        self.VY_avg = (1-1/self.T)*self.VY_avg+VY
+        self.VX_avg = VX
+        self.VY_avg = VY
         # propulsion force
         FX += self.f0*np.cos(self.orient)
         FY += self.f0*np.sin(self.orient)
@@ -262,6 +268,10 @@ class AGran:
 
         self.set_coord()
     def measure(self):
+        for i in range(8):
+            self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker)
+            self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker)
+
         tree1 = cKDTree(self.marker,boxsize=[self.Lx,self.Ly])
         tree2 = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
         dist = tree1.sparse_distance_matrix(tree2, max_distance=self.r0*4,output_type='coo_matrix')
