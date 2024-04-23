@@ -9,7 +9,7 @@ import matplotlib.patches as patches
 from tqdm import trange
 
 class AGran:
-    def __init__(self,Lx = 100.0,Ly=100.0,AR = 1.5,r0 = 1.,rho=0.25, r_tr = 8, T = 10,factor = 0.1, v0 = 1.2, eta = 1500,mu = 0.0007, mur = 0.0001,mu_tr = 0.0001, k = 200,trN=1,v_drag=1, mode='drag'):
+    def __init__(self,Lx = 100.0,Ly=100.0,AR = 1.5,r0 = 1.,rho=0.25, r_tr = 8, T = 10,factor = 0.1, v0 = 1.2, eta = 1500,mu = 0.0007, mur = 0.0001,mu_tr = 0.0001, k = 200,trN=1,v_drag=1, mode='drag',tracer=True):
         self.Lx = Lx   # system size
         self.Ly = Ly
         self.AR = AR   # aspect ratio
@@ -34,6 +34,7 @@ class AGran:
         self.k = k              # wca strength
         self.v_drag = v_drag
         self.mode =mode
+        self.tracer = tracer
 
 
 
@@ -49,13 +50,15 @@ class AGran:
         self.marker = np.zeros((20*5,2))
         theta_marker = np.linspace(0,2*np.pi,20)
 
-        for i in range(5):
+        for i in range(8):
             self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(theta_marker)
             self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(theta_marker)
 
 
-
-        self.N = int(rho*(self.Lx*self.Ly-np.pi*self.r_tr**2)/(self.AR*np.pi*self.r0**2))
+        if tracer==True:
+            self.N = int(rho*(self.Lx*self.Ly-np.pi*self.r_tr**2)/(self.AR*np.pi*self.r0**2))
+        else:
+            self.N = int(rho*(self.Lx*self.Ly)/(self.AR*np.pi*self.r0**2))
         # N=10
         self.initialize()
 
