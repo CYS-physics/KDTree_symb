@@ -254,8 +254,12 @@ class AGran:
         # position update
         self.pos[:,0] += self.mu*self.mom_trans[:,0]*self.dt
         self.pos[:,1] += self.mu*self.mom_trans[:,1]*self.dt
+
+        self.dxp = self.mu*self.mom_trans[:10,0]*self.dt
+        self.dyp = self.mu*self.mom_trans[:10,1]*self.dt
     #     orient   += mur*TAU*dt
         self.orient += self.mur*self.mom_ang[:]*self.dt
+        self.dop = self.mur*self.mom_ang[:10]*self.dt
         # self.pos[:,0] +=self.mu*FX*self.dt
         # self.pos[:,1] +=self.mu*FY*self.dt
         # self.orient +=self.mur*TAU*self.dt
@@ -268,9 +272,19 @@ class AGran:
 
         self.set_coord()
     def measure(self):
-        for i in range(8):
-            self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker)
-            self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker)
+        if self.tracer:
+            pointing = np.angle(self.VX_avg+1j*self.VY_avg)
+
+            for i in range(8):
+                self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker+pointing)
+                self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker+pointing)
+        else:
+            for i in range(8):
+                self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker)
+                self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker)
+
+        self.marker[:,0] = self.marker[:,0]%self.Lx
+        self.marker[:,1] = self.marker[:,1]%self.Ly
 
         tree1 = cKDTree(self.marker,boxsize=[self.Lx,self.Ly])
         tree2 = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
@@ -280,8 +294,8 @@ class AGran:
         rho_mat = sparse.coo_matrix((rho,(dist.row,dist.col)), shape=dist.get_shape())
         self.rho = np.squeeze(np.asarray(rho_mat.sum(axis=1)))
 
-        px = np.cos(self.orient[dist.col])
-        py = np.sin(self.orient[dist.col])
+        px = np.cos(self.orient[dist.col]-pointing)
+        py = np.sin(self.orient[dist.col]-pointing)
         px_mat = sparse.coo_matrix((px,(dist.row,dist.col)), shape=dist.get_shape())
         py_mat = sparse.coo_matrix((py,(dist.row,dist.col)), shape=dist.get_shape())
         self.px = np.squeeze(np.asarray(px_mat.sum(axis=1)))
