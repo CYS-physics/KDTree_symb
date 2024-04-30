@@ -65,6 +65,7 @@ class AGran:
 
     def initialize(self):
         self.pos = np.zeros((self.N,2))
+        self.stress = np.zeros(self.N)
 
         self.pos[:,0] = np.random.uniform(-self.Lx/2+self.r_tr+self.r0,self.Lx/2-self.r_tr-self.r0,size=self.N)
         self.pos[:,1] = np.random.uniform(-self.Ly/2+self.r_tr+self.r0,self.Ly/2-self.r_tr-self.r0,size=self.N)
@@ -110,8 +111,7 @@ class AGran:
 
 
     def WCA(self,rsq,r_unit,k):
-        return self.k*(6*(r_unit)**6/(rsq)**(7/2) - 12*(r_unit)**12/(rsq)**(13/2))
-
+        return self.k*(6*np.divide((r_unit)**6,(rsq)**(7/2),out=np.zeros_like(rsq),where=rsq!=0) - 12*np.divide((r_unit)**12,(rsq)**(13/2),out=np.zeros_like(rsq),where=rsq!=0))
     def FWCA(self,p1,p2,k,r_ref,typ):
 
 
@@ -162,6 +162,7 @@ class AGran:
         FX = np.zeros(self.N)
         FY = np.zeros(self.N)
         TAU = np.zeros(self.N)
+        stress = np.zeros(self.N)
         self.set_coord()
 
 
@@ -191,6 +192,9 @@ class AGran:
         FX += Fxvol02
         FY += Fyvol02
 
+        stress += np.abs(Fxvol1+1j*Fyvol1) + np.abs(Fxvol2+1j*Fyvol2)
+        stress += np.abs(Fxvol10+1j*Fyvol10) + np.abs(Fxvol01+1j*Fyvol01)   + np.abs(Fxvol20+1j*Fyvol20) + np.abs(Fxvol02+1j*Fyvol02)  
+        
 
         # tracer dynamics
         if self.tracer:
@@ -199,6 +203,9 @@ class AGran:
             (Fxtr0,Fytr0) = self.FWCA(self.pos,self.body_tr,self.k,self.r0*2,1)
             FX += Fxtr0+Fxtr1+Fxtr2
             FY += Fytr0+Fytr1+Fytr2
+            stress += np.abs((Fxtr0+Fxtr1+Fxtr2) + 1j*(Fytr0+Fytr1+Fytr2))
+
+
             TAU += self.Torque(Fxtr1,Fytr1,self.armb1[:,0],self.armb1[:,1])+ self.Torque(Fxtr2,Fytr2,self.armb2[:,0],self.armb2[:,1])
             VX = -self.mu_tr*np.sum(Fxtr0+Fxtr1+Fxtr2)
             VY = -self.mu_tr*np.sum(Fytr0+Fytr1+Fytr2)
@@ -206,6 +213,7 @@ class AGran:
             VX = 0
             VY = 0
 
+        self.stress = stress
     #     pos_tr[0]-=mu_tr*np.sum(Fxtr0+Fxtr1+Fxtr2)
     #     pos_tr[1]-=mu_tr*np.sum(Fytr0+Fytr1+Fytr2)
 
@@ -220,8 +228,8 @@ class AGran:
 
             
 
-        self.VX_avg = VX
-        self.VY_avg = VY
+        self.VX_avg = VX*0.1+self.VX_avg*0.9
+        self.VY_avg = VY*0.1+self.VY_avg*0.9
         # propulsion force
         FX += self.f0*np.cos(self.orient)
         FY += self.f0*np.sin(self.orient)
@@ -255,11 +263,11 @@ class AGran:
         self.pos[:,0] += self.mu*self.mom_trans[:,0]*self.dt
         self.pos[:,1] += self.mu*self.mom_trans[:,1]*self.dt
 
-        self.dxp = self.mu*self.mom_trans[:10,0]*self.dt
-        self.dyp = self.mu*self.mom_trans[:10,1]*self.dt
+        self.dxp = self.mu*self.mom_trans[:,0]*self.dt
+        self.dyp = self.mu*self.mom_trans[:,1]*self.dt
     #     orient   += mur*TAU*dt
         self.orient += self.mur*self.mom_ang[:]*self.dt
-        self.dop = self.mur*self.mom_ang[:10]*self.dt
+        self.dop = self.mur*self.mom_ang[:]*self.dt
         # self.pos[:,0] +=self.mu*FX*self.dt
         # self.pos[:,1] +=self.mu*FY*self.dt
         # self.orient +=self.mur*TAU*self.dt
@@ -279,6 +287,7 @@ class AGran:
                 self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker+pointing)
                 self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker+pointing)
         else:
+            pointing=0
             for i in range(8):
                 self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker)
                 self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker)
@@ -300,6 +309,19 @@ class AGran:
         py_mat = sparse.coo_matrix((py,(dist.row,dist.col)), shape=dist.get_shape())
         self.px = np.squeeze(np.asarray(px_mat.sum(axis=1)))
         self.py = np.squeeze(np.asarray(py_mat.sum(axis=1)))
+
+        v_loc = np.sqrt(self.dxp**2+self.dyp**2)[dist.col]
+        F_loc = self.stress[dist.col]
+        D_loc = (self.dop**2)[dist.col]
+        v_mat = sparse.coo_matrix((v_loc,(dist.row,dist.col)), shape=dist.get_shape())
+        F_mat = sparse.coo_matrix((F_loc,(dist.row,dist.col)), shape=dist.get_shape())
+        D_mat = sparse.coo_matrix((D_loc,(dist.row,dist.col)), shape=dist.get_shape())
+
+        v_loc = np.squeeze(np.asarray(v_mat.sum(axis=1)))
+        self.F_loc = np.squeeze(np.asarray(F_mat.sum(axis=1)))
+        D_loc = np.squeeze(np.asarray(D_mat.sum(axis=1)))
+        self.v_loc = np.divide(v_loc,self.rho,out=np.zeros_like(v_loc), where=self.rho!=0)
+        self.D_loc = np.divide(D_loc,self.rho,out=np.zeros_like(D_loc), where=self.rho!=0)
 
 
 
