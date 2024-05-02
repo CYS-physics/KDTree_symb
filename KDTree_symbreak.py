@@ -51,8 +51,8 @@ class AGran:
         self.theta_marker = np.linspace(0,2*np.pi,20)
 
         for i in range(8):
-            self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker)
-            self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker)
+            self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*1.3*(i+2))*np.cos(self.theta_marker)
+            self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*1.3*(i+2))*np.sin(self.theta_marker)
 
 
         if tracer:
@@ -70,7 +70,10 @@ class AGran:
         self.pos[:,0] = np.random.uniform(-self.Lx/2+self.r_tr+self.r0,self.Lx/2-self.r_tr-self.r0,size=self.N)
         self.pos[:,1] = np.random.uniform(-self.Ly/2+self.r_tr+self.r0,self.Ly/2-self.r_tr-self.r0,size=self.N)
         self.orient = np.random.uniform(-np.pi, np.pi,size=self.N)
+        self.len_or_traj = 10000
+        self.or_traj = np.zeros((self.N,self.len_or_traj))
         self.mom_trans = np.zeros((self.N,2))
+        self.iter = 0
         self.mom_ang = np.zeros(self.N)
 
         self.set_coord()
@@ -268,6 +271,8 @@ class AGran:
     #     orient   += mur*TAU*dt
         self.orient += self.mur*self.mom_ang[:]*self.dt
         self.dop = self.mur*self.mom_ang[:]*self.dt
+        self.dop_traj[self.iter,:] = self.dop
+        self.iter = (self.iter+1)%self.len_or_traj
         # self.pos[:,0] +=self.mu*FX*self.dt
         # self.pos[:,1] +=self.mu*FY*self.dt
         # self.orient +=self.mur*TAU*self.dt
@@ -312,7 +317,8 @@ class AGran:
 
         v_loc = np.sqrt(self.dxp**2+self.dyp**2)[dist.col]
         F_loc = self.stress[dist.col]
-        D_loc = (self.dop**2)[dist.col]
+        dop = np.mean(self.dop_traj,axis=0)
+        D_loc = (dop**2)[dist.col]
         v_mat = sparse.coo_matrix((v_loc,(dist.row,dist.col)), shape=dist.get_shape())
         F_mat = sparse.coo_matrix((F_loc,(dist.row,dist.col)), shape=dist.get_shape())
         D_mat = sparse.coo_matrix((D_loc,(dist.row,dist.col)), shape=dist.get_shape())
