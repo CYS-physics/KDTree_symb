@@ -13,7 +13,7 @@ class AGran:
         self.Lx = Lx   # system size
         self.Ly = Ly
         self.AR = AR   # aspect ratio
-        self.r0 = r0   # particle size
+        self.r0 = r0/np.sqrt(AR)   # particle size
         self.r_tr = r_tr  # tracer size
         
     
@@ -47,10 +47,11 @@ class AGran:
         self.body_tr = np.zeros((self.N_tr,2))
         self.theta_tr = np.linspace(0,2*np.pi,self.N_tr)
 
-        self.marker = np.zeros((20*8,2))
+        N_layer = 12
+        self.marker = np.zeros((20*N_layer,2))
         self.theta_marker = np.linspace(0,2*np.pi,20)
 
-        for i in range(8):
+        for i in range(N_layer):
             self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*1.3*(i+2))*np.cos(self.theta_marker)
             self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*1.3*(i+2))*np.sin(self.theta_marker)
 
@@ -71,7 +72,7 @@ class AGran:
         self.pos[:,1] = np.random.uniform(-self.Ly/2+self.r_tr+self.r0,self.Ly/2-self.r_tr-self.r0,size=self.N)
         self.orient = np.random.uniform(-np.pi, np.pi,size=self.N)
         self.len_or_traj = 10000
-        self.or_traj = np.zeros((self.N,self.len_or_traj))
+        self.or_traj = np.zeros((self.len_or_traj,self.N))
         self.mom_trans = np.zeros((self.N,2))
         self.iter = 0
         self.mom_ang = np.zeros(self.N)
@@ -249,9 +250,15 @@ class AGran:
         TAU -= self.mom_ang/(self.T*self.dt)
 
         # noise
-        FX += self.eta*np.sqrt(self.dt)*np.random.uniform(-1, 1, size=self.N)
-        FY += self.eta*np.sqrt(self.dt)*np.random.uniform(-1, 1, size=self.N)
-        TAU += 3*self.eta*np.sqrt(self.dt)*np.random.uniform(-np.pi, np.pi, size=self.N)
+        FX += self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-1, 1, size=self.N)
+        FY += self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-1, 1, size=self.N)
+        if (self.AR-1)**2>0.0001:
+            TAU+=3*self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-np.pi, np.pi, size=self.N)
+
+        else:
+            TAU = 3*self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-np.pi, np.pi, size=self.N)
+
+        
 
 
 
@@ -271,7 +278,7 @@ class AGran:
     #     orient   += mur*TAU*dt
         self.orient += self.mur*self.mom_ang[:]*self.dt
         self.dop = self.mur*self.mom_ang[:]*self.dt
-        self.dop_traj[self.iter,:] = self.dop
+        self.or_traj[self.iter,:] = self.dop
         self.iter = (self.iter+1)%self.len_or_traj
         # self.pos[:,0] +=self.mu*FX*self.dt
         # self.pos[:,1] +=self.mu*FY*self.dt
@@ -286,13 +293,13 @@ class AGran:
         self.set_coord()
     def measure(self):
         if self.tracer:
-            pointing = np.angle(self.VX_avg+1j*self.VY_avg)
+            self.pointing = np.angle(self.VX_avg+1j*self.VY_avg)
 
             for i in range(8):
-                self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker+pointing)
-                self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker+pointing)
+                self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker+self.pointing)
+                self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker+self.pointing)
         else:
-            pointing=0
+            self.pointing=0
             for i in range(8):
                 self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker)
                 self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker)
@@ -308,8 +315,8 @@ class AGran:
         rho_mat = sparse.coo_matrix((rho,(dist.row,dist.col)), shape=dist.get_shape())
         self.rho = np.squeeze(np.asarray(rho_mat.sum(axis=1)))
 
-        px = np.cos(self.orient[dist.col]-pointing)
-        py = np.sin(self.orient[dist.col]-pointing)
+        px = np.cos(self.orient[dist.col]-self.pointing)
+        py = np.sin(self.orient[dist.col]-self.pointing)
         px_mat = sparse.coo_matrix((px,(dist.row,dist.col)), shape=dist.get_shape())
         py_mat = sparse.coo_matrix((py,(dist.row,dist.col)), shape=dist.get_shape())
         self.px = np.squeeze(np.asarray(px_mat.sum(axis=1)))
@@ -317,7 +324,7 @@ class AGran:
 
         v_loc = np.sqrt(self.dxp**2+self.dyp**2)[dist.col]
         F_loc = self.stress[dist.col]
-        dop = np.mean(self.dop_traj,axis=0)
+        dop = np.mean(self.or_traj,axis=0)
         D_loc = (dop**2)[dist.col]
         v_mat = sparse.coo_matrix((v_loc,(dist.row,dist.col)), shape=dist.get_shape())
         F_mat = sparse.coo_matrix((F_loc,(dist.row,dist.col)), shape=dist.get_shape())
