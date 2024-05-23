@@ -257,7 +257,7 @@ class AGran:
             self.pos_tr[0] +=VX*self.dt
             self.pos_tr[1] +=VY*self.dt
             self.pos_tr[0] = self.pos_tr[0]%self.Lx
-            self.pos_tr[1] = self.pos_tr[0]%self.Ly
+            self.pos_tr[1] = self.pos_tr[1]%self.Ly
 
             
 
