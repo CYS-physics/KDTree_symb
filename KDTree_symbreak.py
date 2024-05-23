@@ -107,11 +107,9 @@ class AGran:
 
         if self.mode=='free':
 
-            self.body_tr[:,0] = self.pos_tr[0]+self.r_tr*np.cos(self.theta_tr)
-            self.body_tr[:,1] = self.pos_tr[1]+self.r_tr*np.sin(self.theta_tr)
+            self.body_tr[:,0] = (self.pos_tr[0]+self.r_tr*np.cos(self.theta_tr))%self.Lx
+            self.body_tr[:,1] = (self.pos_tr[1]+self.r_tr*np.sin(self.theta_tr))%self.Ly
 
-            self.body_tr[:,0] = self.body_tr[:,0]%self.Lx
-            self.body_tr[:,1] = self.body_tr[:,1]%self.Ly
 
 
     def WCA(self,rsq,r_unit,k):
@@ -151,6 +149,32 @@ class AGran:
 
     def Torque(self,Fx,Fy, rx,ry):
         return (rx*Fy-ry*Fx)
+
+    def check_neighbor(self):
+        tree0 = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
+        tree1 = cKDTree(self.pos1,boxsize=[self.Lx,self.Ly])
+        tree2 = cKDTree(self.pos2,boxsize=[self.Lx,self.Ly])
+
+        dist00 = tree0.sparse_distance_matrix(tree0, max_distance=self.r0*2*1.1,output_type='coo_matrix')
+        dist01 = tree0.sparse_distance_matrix(tree1, max_distance=self.r0*(1+1/self.AR)*1.1,output_type='coo_matrix')
+        dist02 = tree0.sparse_distance_matrix(tree2, max_distance=self.r0*(1+1/self.AR)*1.1,output_type='coo_matrix')
+        dist10 = tree1.sparse_distance_matrix(tree0, max_distance=self.r0*(1+1/self.AR)*1.1,output_type='coo_matrix')
+        dist11 = tree1.sparse_distance_matrix(tree1, max_distance=self.r0*(2/self.AR)*1.1,output_type='coo_matrix')
+        dist12 = tree1.sparse_distance_matrix(tree2, max_distance=self.r0*(2/self.AR)*1.1,output_type='coo_matrix')
+        dist20 = tree2.sparse_distance_matrix(tree0, max_distance=self.r0*(1+1/self.AR)*1.1,output_type='coo_matrix')
+        dist21 = tree2.sparse_distance_matrix(tree1, max_distance=self.r0*(2/self.AR)*1.1,output_type='coo_matrix')
+        dist22 = tree2.sparse_distance_matrix(tree2, max_distance=self.r0*(2/self.AR)*1.1,output_type='coo_matrix')
+
+        dist_list = [dist00,dist01,dist02,dist10,dist11,dist12,dist20,dist21,dist22]
+        count_sum = sparse.coo_matrix((self.N, self.N ), dtype=bool)
+        for dist in dist_list:
+            count = np.full(self.N,True)[dist.col]
+            count[dist.row==dist.col] = False
+            count_mat = sparse.coo_matrix((count,(dist.row,dist.col)), shape=dist.get_shape())
+            count_sum+=count_mat
+        neighbor_count = np.squeeze(np.asarray(count_sum.sum(axis=1)))
+
+        return neighbor_count
 
 
     
@@ -195,9 +219,12 @@ class AGran:
         (Fxvol02,Fyvol02) = self.FWCA(self.pos,self.pos2,self.k,self.r0*(1+1/self.AR),0)
         FX += Fxvol02
         FY += Fyvol02
+        (Fxvol00,Fyvol00) = self.FWCA(self.pos,self.pos,self.k,self.r0*2,0)
+        FX += Fxvol00
+        FY += Fyvol00
 
         stress += np.abs(Fxvol1+1j*Fyvol1) + np.abs(Fxvol2+1j*Fyvol2)
-        stress += np.abs(Fxvol10+1j*Fyvol10) + np.abs(Fxvol01+1j*Fyvol01)   + np.abs(Fxvol20+1j*Fyvol20) + np.abs(Fxvol02+1j*Fyvol02)  
+        stress += np.abs(Fxvol10+1j*Fyvol10) + np.abs(Fxvol01+1j*Fyvol01)   + np.abs(Fxvol20+1j*Fyvol20) + np.abs(Fxvol02+1j*Fyvol02)  + np.abs(Fxvol00+1j*Fyvol00)  
         
 
         # tracer dynamics
@@ -229,6 +256,8 @@ class AGran:
         else:
             self.pos_tr[0] +=VX*self.dt
             self.pos_tr[1] +=VY*self.dt
+            self.pos_tr[0] = self.pos_tr[0]%self.Lx
+            self.pos_tr[1] = self.pos_tr[0]%self.Ly
 
             
 
