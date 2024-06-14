@@ -183,8 +183,8 @@ class AGran:
 
     def find_cluster(self):
         positions = np.append(self.pos,self.body_tr,axis=0)
-        positions[:,0] = (positions[:,0]-self.pos_tr[0])%self.Lx
-        positions[:,1] = (positions[:,1]-self.pos_tr[1])%self.Ly
+        positions[:,0] = (positions[:,0]-self.pos_tr[0]-self.Lx/2)%self.Lx
+        positions[:,1] = (positions[:,1]-self.pos_tr[1]-self.Ly/2)%self.Ly
 
         linked = linkage(positions,'single')
         threshold = self.cluster_threshold
