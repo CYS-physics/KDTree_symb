@@ -17,6 +17,7 @@ class AGran:
         self.Ly = Ly
         self.AR = AR   # aspect ratio
         self.r0 = r0/np.sqrt(AR)   # particle size
+        self.cluster_threshold = 2.7*self.r0
         self.r_tr = r_tr  # tracer size
         
     
@@ -181,8 +182,12 @@ class AGran:
 
 
     def find_cluster(self):
-        linked = linkage(np.append(self.pos,self.body_tr),'single')
-        threshold = 4*self.r0
+        positions = np.append(self.pos,self.body_tr,axis=0)
+        positions[:,0] = (positions[:,0]-self.pos_tr[0])%self.Lx
+        positions[:,1] = (positions[:,1]-self.pos_tr[1])%self.Ly
+
+        linked = linkage(positions,'single')
+        threshold = self.cluster_threshold
         Clust = fcluster(linked, threshold, criterion='distance')
         counts = np.bincount(Clust)
         idx = np.argmax(counts)
