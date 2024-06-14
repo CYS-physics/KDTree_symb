@@ -8,6 +8,9 @@ import matplotlib.animation as animation
 import matplotlib.patches as patches
 from tqdm import trange
 
+from scipy.cluster.hierarchy import  linkage, fcluster
+
+
 class AGran:
     def __init__(self,Lx = 100.0,Ly=100.0,AR = 1.5,r0 = 1.,rho=0.25, r_tr = 8, T = 10,factor = 0.1, v0 = 1.2, eta = 1500,mu = 0.0007, mur = 0.0001,mu_tr = 0.0001, k = 200,trN=1,v_drag=1, mode='drag',tracer=True):
         self.Lx = Lx   # system size
@@ -177,6 +180,19 @@ class AGran:
         return neighbor_count
 
 
+    def find_cluster(self):
+        linked = linkage(np.append(self.pos,self.body_tr),'single')
+        threshold = 4*self.r0
+        Clust = fcluster(linked, threshold, criterion='distance')
+        counts = np.bincount(Clust)
+        idx = np.argmax(counts)
+        self.clustS = counts[idx]-self.N_tr
+
+        cluster_flag = (Clust==idx)[:self.N]
+
+
+        return cluster_flag
+
     
 
 
@@ -281,11 +297,12 @@ class AGran:
         # noise
         FX += self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-1, 1, size=self.N)
         FY += self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-1, 1, size=self.N)
-        if (self.AR-1)**2>0.0001:
-            TAU+=3*self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-np.pi, np.pi, size=self.N)
+        # if (self.AR-1)**2>0.0001:
+        #     TAU+=3*self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-np.pi, np.pi, size=self.N)
 
-        else:
-            TAU = 3*self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-np.pi, np.pi, size=self.N)
+        # else:
+        #     TAU = 3*self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-np.pi, np.pi, size=self.N)
+        TAU+=3*self.eta*(1/np.sqrt(self.dt))*np.random.uniform(-np.pi, np.pi, size=self.N)
 
         
 
@@ -365,6 +382,21 @@ class AGran:
         self.v_loc = np.divide(v_loc,self.rho,out=np.zeros_like(v_loc), where=self.rho!=0)
         self.D_loc = np.divide(D_loc,self.rho,out=np.zeros_like(D_loc), where=self.rho!=0)
 
+
+        cluster_flag = self.find_cluster()
+
+        Cpos = self.pos[cluster_flag]
+        Cpos[:,0] = (Cpos[:,0]-self.pos_tr[0])%self.Lx
+        Cpos[:,1] = (Cpos[:,1]-self.pos_tr[1])%self.Ly
+        Cang = self.orient[cluster_flag]
+
+        dix = np.sum(Cpos[0])
+        diy = np.sum(Cpos[1])
+        cpx = np.sum(np.cos(Cang))
+        cpy = np.sum(np.sin(Cang))
+        
+        self.clustDi = [np.cos(self.pointing)*dix-np.sin(self.pointing)*diy,np.sin(self.pointing)*dix+np.cos(self.pointing)*diy]
+        self.clustP = [np.cos(self.pointing)*cpx-np.sin(self.pointing)*cpy,np.sin(self.pointing)*cpx+np.cos(self.pointing)*cpy]
 
 
 
