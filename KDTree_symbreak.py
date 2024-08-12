@@ -10,8 +10,6 @@ from tqdm import trange
 
 from scipy.cluster.hierarchy import  linkage, fcluster
 
-
-
 class AGran:
     def __init__(self,Lx = 100.0,Ly=100.0,AR = 1.5,r0 = 1.,rho=0.25, r_tr = 8, T = 10,factor = 0.1, v0 = 1.2, eta = 1500,mu = 0.0007, mur = 0.0001,mu_tr = 0.0001, k = 200,trN=1,v_drag=1, mode='drag',tracer=True):
         self.Lx = Lx   # system size
