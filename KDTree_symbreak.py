@@ -15,7 +15,12 @@ class AGran:
     def __init__(self,Lx = 100.0,Ly=100.0,AR = 1.5,r0 = 1.,rho=0.25, r_tr = 8, T = 10,factor = 0.1, v0 = 1.2, eta = 1500,mu = 0.0007, mur = 0.0001,mu_tr = 0.0001, k = 200,trN=1,v_drag=1, mode='drag',tracer=True):
         self.Lx = Lx   # system size
         self.Ly = Ly
-        self.AR = AR   # aspect ratio
+        if AR>=1:
+            self.AR = AR   # aspect ratio
+            self.long = True
+        else:
+            self.AR = 1/AR
+            self.long = False
         self.r0 = r0/np.sqrt(AR)   # particle size
         self.cluster_threshold = 2.7*self.r0
         self.r_tr = r_tr  # tracer size
@@ -95,8 +100,12 @@ class AGran:
         self.pos_tr[0] = self.pos_tr[0]%self.Lx
         self.pos_tr[1] = self.pos_tr[1]%self.Ly
 
-        self.armb1 = (self.AR-(1/self.AR))*self.r0*np.array([np.cos(self.orient),np.sin(self.orient)]).T
-        self.armb2 = - (self.AR-(1/self.AR))*self.r0*np.array([np.cos(self.orient),np.sin(self.orient)]).T
+        if self.long==True:
+            self.armb1 = (self.AR-(1/self.AR))*self.r0*np.array([np.cos(self.orient),np.sin(self.orient)]).T
+            self.armb2 = - (self.AR-(1/self.AR))*self.r0*np.array([np.cos(self.orient),np.sin(self.orient)]).T
+        else:
+            self.armb1 = (self.AR-(1/self.AR))*self.r0*np.array([np.cos(self.orient+np.pi/2),np.sin(self.orient+np.pi/2)]).T
+            self.armb2 = - (self.AR-(1/self.AR))*self.r0*np.array([np.cos(self.orient+np.pi/2),np.sin(self.orient+np.pi/2)]).T
     #     armb1 = (AR-(1/AR))*r0*np.array([np.cos(orient+np.pi/2),np.sin(orient+np.pi/2)]).T
     #     armb2 = - (AR-(1/AR))*r0*np.array([np.cos(orient+np.pi/2),np.sin(orient+np.pi/2)]).T
 
@@ -391,17 +400,18 @@ class AGran:
         cluster_flag = self.find_cluster()
 
         Cpos = self.pos[cluster_flag]
-        Cpos[:,0] = (Cpos[:,0]-self.pos_tr[0])%self.Lx
-        Cpos[:,1] = (Cpos[:,1]-self.pos_tr[1])%self.Ly
+        Cpos[:,0] = (Cpos[:,0]-self.pos_tr[0]-self.Lx/2)%self.Lx - self.Lx/2
+        Cpos[:,1] = (Cpos[:,1]-self.pos_tr[1]-self.Ly/2)%self.Ly - self.Ly/2
         Cang = self.orient[cluster_flag]
 
-        dix = np.sum(Cpos[0])
-        diy = np.sum(Cpos[1])
+        dix = np.sum(Cpos[:,0])
+        diy = np.sum(Cpos[:,1])
         cpx = np.sum(np.cos(Cang))
         cpy = np.sum(np.sin(Cang))
         
-        self.clustDi = [np.cos(self.pointing)*dix-np.sin(self.pointing)*diy,np.sin(self.pointing)*dix+np.cos(self.pointing)*diy]
-        self.clustP = [np.cos(self.pointing)*cpx-np.sin(self.pointing)*cpy,np.sin(self.pointing)*cpx+np.cos(self.pointing)*cpy]
+        self.clustDi = [np.cos(self.pointing)*dix+np.sin(self.pointing)*diy,-np.sin(self.pointing)*dix+np.cos(self.pointing)*diy]
+        self.clustP = [np.cos(self.pointing)*cpx+np.sin(self.pointing)*cpy,-np.sin(self.pointing)*cpx+np.cos(self.pointing)*cpy]
+        self.clustCh = np.sum((np.cos(Cang)*Cpos[:,1]-np.sin(Cang)*Cpos[:,0])/(Cpos[:,0]**2+Cpos[:,1]**2)**0.5)
 
 
 
