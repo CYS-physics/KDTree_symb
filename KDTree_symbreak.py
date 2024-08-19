@@ -420,15 +420,18 @@ class AGran:
         # self.set_coord()
         Lx_init = self.Lx
         Ly_init = self.Ly
+        r_tr_init = self.r_tr
 
         self.Lx = 4*Lx_init
         self.Ly = 4*Lx_init
+        self.r_tr = 4*r_tr_init
         self.initialize()
 
 
-        for i in range(10000):
+        for i in trange(10000):
             self.Lx = Lx_init*(1+3*(9999-i)/10000)
             self.Ly = Ly_init*(1+3*(9999-i)/10000)
+            self.r_tr = r_tr_init*(1+3*(9999-i)/10000)
             self.pos *=(1+3*(9999-i)/10000)/(1+3*(10000-i)/10000)
 
             tree = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
@@ -436,11 +439,11 @@ class AGran:
             dist = tree.sparse_distance_matrix(tree, max_distance=self.r0*2*2**(1/6),output_type='coo_matrix')
             while (len(dist.col)>self.N):
                 filt = (dist.col!=dist.row)
-                newx = np.random.uniform(-self.Lx/2,self.Lx/2,size=1)
-                newy = np.random.uniform(-self.Ly/2,self.Ly/2,size=1)
-                while ((newx-self.Lx/2)**2+(newy-self.Ly/2)**2-self.r_tr**2<self.r0**2):
-                    newx = self.pos[dist.col[filt][0]][0] = np.random.uniform(-self.Lx/2,self.Lx/2,size=1)
-                    newy = self.pos[dist.col[filt][0]][1] = np.random.uniform(-self.Ly/2,self.Ly/2,size=1)
+                newx = np.random.uniform(0,self.Lx,size=1)
+                newy = np.random.uniform(0,self.Ly,size=1)
+                while (np.sqrt((newx-self.Lx/2)**2+(newy-self.Ly/2)**2)<self.r_tr+2*self.r0):
+                    newx = self.pos[dist.col[filt][0]][0] = np.random.uniform(0,self.Lx,size=1)
+                    newy = self.pos[dist.col[filt][0]][1] = np.random.uniform(0,self.Ly,size=1)
                     
                 self.pos[dist.col[filt][0]][0] = newx
                 self.pos[dist.col[filt][0]][1] = newy
