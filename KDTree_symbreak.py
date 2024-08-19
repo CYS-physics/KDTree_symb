@@ -436,8 +436,14 @@ class AGran:
             dist = tree.sparse_distance_matrix(tree, max_distance=self.r0*2*2**(1/6),output_type='coo_matrix')
             while (len(dist.col)>self.N):
                 filt = (dist.col!=dist.row)
-                self.pos[dist.col[filt][0]][0] = np.random.uniform(-self.Lx/2+self.r_tr+self.r0,self.Lx/2-self.r_tr-self.r0,size=1)
-                self.pos[dist.col[filt][0]][1] = np.random.uniform(-self.Ly/2+self.r_tr+self.r0,self.Ly/2-self.r_tr-self.r0,size=1)
+                newx = np.random.uniform(-self.Lx/2,self.Lx/2,size=1)
+                newy = np.random.uniform(-self.Ly/2,self.Ly/2,size=1)
+                while ((newx-self.Lx/2)**2+(newy-self.Ly/2)**2-self.r_tr**2<self.r0**2):
+                    newx = self.pos[dist.col[filt][0]][0] = np.random.uniform(-self.Lx/2,self.Lx/2,size=1)
+                    newy = self.pos[dist.col[filt][0]][1] = np.random.uniform(-self.Ly/2,self.Ly/2,size=1)
+                    
+                self.pos[dist.col[filt][0]][0] = newx
+                self.pos[dist.col[filt][0]][1] = newy
                 self.set_coord()
 
                 tree = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
