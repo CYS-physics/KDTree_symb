@@ -429,6 +429,7 @@ class AGran:
         for i in range(10000):
             self.Lx = Lx_init*(1+3*(9999-i)/10000)
             self.Ly = Ly_init*(1+3*(9999-i)/10000)
+            self.pos *=(1+3*(9999-i)/10000)/(1+3*(10000-i)/10000)
 
             tree = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
             # treeall = cKDTree(np.concatenate([pos,wall]),boxsize=[Lx,Ly])
