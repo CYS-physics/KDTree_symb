@@ -11,7 +11,7 @@ from tqdm import trange
 from scipy.cluster.hierarchy import  linkage, fcluster
 
 class AGran:
-    def __init__(self,Lx = 100.0,Ly=100.0,AR = 1.5,r0 = 1.,rho=0.25, r_tr = 8, T = 10,factor = 0.1, v0 = 1.2, eta = 1500,mu = 0.0007, mur = 0.0001,mu_tr = 0.0001, k = 200,trN=1,v_drag=1, mode='drag',tracer=True):
+    def __init__(self,Lx = 150.0,Ly=150.0,AR = 1.5,r0 = 1.,rho=0.25, r_tr = 8, T = 10,factor = 0.1, v0 = 1.2, eta = 1500,mu = 0.0007, mur = 0.0001,mu_tr = 0.0001, k = 200,trN=1,v_drag=1, mode='drag',tracer=True):
         self.Lx = Lx   # system size
         self.Ly = Ly
         if AR>=1:
@@ -71,6 +71,7 @@ class AGran:
             # self.k = 0
         # N=10
         self.initialize()
+        self.relax()
 
     def initialize(self):
         self.pos = np.zeros((self.N,2))
@@ -86,7 +87,7 @@ class AGran:
         self.mom_ang = np.zeros(self.N)
 
         self.set_coord()
-        self.relax()
+        # self.relax()
 
 
         self.VX_avg = 0
@@ -416,19 +417,31 @@ class AGran:
 
     # relaxation of initial position to avoid overlapping
     def relax(self):
-        self.set_coord()
-        tree = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
-        # treeall = cKDTree(np.concatenate([pos,wall]),boxsize=[Lx,Ly])
-        dist = tree.sparse_distance_matrix(tree, max_distance=self.r0*2*2**(1/6),output_type='coo_matrix')
-        while (len(dist.col)>self.N):
-            filt = (dist.col!=dist.row)
-            self.pos[dist.col[filt][0]][0] = np.random.uniform(-self.Lx/2+self.r_tr+self.r0,self.Lx/2-self.r_tr-self.r0,size=1)
-            self.pos[dist.col[filt][0]][1] = np.random.uniform(-self.Ly/2+self.r_tr+self.r0,self.Ly/2-self.r_tr-self.r0,size=1)
-            self.set_coord()
+        # self.set_coord()
+        Lx_init = self.Lx
+        Ly_init = self.Ly
+
+        self.Lx = 4*Lx_init
+        self.Ly = 4*Lx_init
+        self.initialize()
+
+
+        for i in range(10000):
+            self.Lx = Lx_init*(1+3*(9999-i)/10000)
+            self.Ly = Ly_init*(1+3*(9999-i)/10000)
 
             tree = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
-        #     treeall = cKDTree(np.concatenate([pos,wall]),boxsize=[Lx,Ly])
-            dist = tree.sparse_distance_matrix(tree, max_distance=self.r0*1.9*2**(1/6),output_type='coo_matrix')
+            # treeall = cKDTree(np.concatenate([pos,wall]),boxsize=[Lx,Ly])
+            dist = tree.sparse_distance_matrix(tree, max_distance=self.r0*2*2**(1/6),output_type='coo_matrix')
+            while (len(dist.col)>self.N):
+                filt = (dist.col!=dist.row)
+                self.pos[dist.col[filt][0]][0] = np.random.uniform(-self.Lx/2+self.r_tr+self.r0,self.Lx/2-self.r_tr-self.r0,size=1)
+                self.pos[dist.col[filt][0]][1] = np.random.uniform(-self.Ly/2+self.r_tr+self.r0,self.Ly/2-self.r_tr-self.r0,size=1)
+                self.set_coord()
+
+                tree = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
+            #     treeall = cKDTree(np.concatenate([pos,wall]),boxsize=[Lx,Ly])
+                dist = tree.sparse_distance_matrix(tree, max_distance=self.r0*1.9*2**(1/6),output_type='coo_matrix')
 
 
 
