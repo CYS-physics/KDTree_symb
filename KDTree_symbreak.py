@@ -55,6 +55,9 @@ class AGran:
         self.body_tr = np.zeros((self.N_tr,2))
         self.theta_tr = np.linspace(0,2*np.pi,self.N_tr)
 
+#         self.body_tr[:,0] = (self.pos_tr[0]+self.r_tr*np.cos(self.theta_tr))%self.Lx
+#         self.body_tr[:,1] = (self.pos_tr[1]+self.r_tr*np.sin(self.theta_tr))%self.Ly
+
         N_layer = 12
         self.marker = np.zeros((20*N_layer,2))
         self.theta_marker = np.linspace(0,2*np.pi,20)
@@ -74,9 +77,11 @@ class AGran:
         self.relax()
 
     def initialize(self):
+        
         self.pos = np.zeros((self.N,2))
         self.stress = np.zeros(self.N)
-
+        
+        
         self.pos[:,0] = np.random.uniform(-self.Lx/2+self.r_tr+self.r0,self.Lx/2-self.r_tr-self.r0,size=self.N)
         self.pos[:,1] = np.random.uniform(-self.Ly/2+self.r_tr+self.r0,self.Ly/2-self.r_tr-self.r0,size=self.N)
         self.orient = np.random.uniform(-np.pi, np.pi,size=self.N)
@@ -87,7 +92,7 @@ class AGran:
         self.mom_ang = np.zeros(self.N)
 
         self.set_coord()
-        # self.relax()
+#         self.relax()
 
 
         self.VX_avg = 0
@@ -118,10 +123,10 @@ class AGran:
         self.pos2[:,1] = self.pos2[:,1]%self.Ly
         self.postot = np.concatenate([self.pos1,self.pos2])
 
-        if self.mode=='free':
+#         if self.mode=='free':
 
-            self.body_tr[:,0] = (self.pos_tr[0]+self.r_tr*np.cos(self.theta_tr))%self.Lx
-            self.body_tr[:,1] = (self.pos_tr[1]+self.r_tr*np.sin(self.theta_tr))%self.Ly
+        self.body_tr[:,0] = (self.pos_tr[0]+self.r_tr*np.cos(self.theta_tr))%self.Lx
+        self.body_tr[:,1] = (self.pos_tr[1]+self.r_tr*np.sin(self.theta_tr))%self.Ly
 
 
 
@@ -420,18 +425,18 @@ class AGran:
         # self.set_coord()
         Lx_init = self.Lx
         Ly_init = self.Ly
-        r_tr_init = self.r_tr
+        pos_tr_init = self.pos_tr
 
         self.Lx = 4*Lx_init
         self.Ly = 4*Lx_init
-        self.r_tr = 4*r_tr_init
+        self.pos_tr = 4*pos_tr_init
         self.initialize()
 
 
         for i in trange(10000):
             self.Lx = Lx_init*(1+3*(9999-i)/10000)
             self.Ly = Ly_init*(1+3*(9999-i)/10000)
-            self.r_tr = r_tr_init*(1+3*(9999-i)/10000)
+            self.pos_tr = pos_tr_init*(1+3*(9999-i)/10000)
             self.pos *=(1+3*(9999-i)/10000)/(1+3*(10000-i)/10000)
             self.update()
 
