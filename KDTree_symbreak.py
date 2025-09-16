@@ -85,6 +85,8 @@ class AGran:
         self.mom_trans = np.zeros((self.N,2))
         self.iter = 0
         self.mom_ang = np.zeros(self.N)
+        self.cluster_current = False
+        self.cluster_previous = False
 
         self.set_coord()
         # self.relax()
@@ -355,50 +357,54 @@ class AGran:
         if self.tracer:
             self.pointing = np.angle(self.VX_avg+1j*self.VY_avg)
 
-            for i in range(8):
-                self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker+self.pointing)
-                self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker+self.pointing)
-        else:
-            self.pointing=0
-            for i in range(8):
-                self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker)
-                self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker)
 
-        self.marker[:,0] = self.marker[:,0]%self.Lx
-        self.marker[:,1] = self.marker[:,1]%self.Ly
+        #     for i in range(8):
+        #         self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker+self.pointing)
+        #         self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker+self.pointing)
+        # else:
+        #     self.pointing=0
+        #     for i in range(8):
+        #         self.marker[i*20:(i+1)*20,0] = self.pos_tr[0]+(self.r_tr+self.r0*(i+2))*np.cos(self.theta_marker)
+        #         self.marker[i*20:(i+1)*20,1] = self.pos_tr[1]+(self.r_tr+self.r0*(i+2))*np.sin(self.theta_marker)
 
-        tree1 = cKDTree(self.marker,boxsize=[self.Lx,self.Ly])
-        tree2 = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
-        dist = tree1.sparse_distance_matrix(tree2, max_distance=self.r0*4,output_type='coo_matrix')
+        # self.marker[:,0] = self.marker[:,0]%self.Lx
+        # self.marker[:,1] = self.marker[:,1]%self.Ly
 
-        rho = np.ones(self.N)[dist.col]
-        rho_mat = sparse.coo_matrix((rho,(dist.row,dist.col)), shape=dist.get_shape())
-        self.rho = np.squeeze(np.asarray(rho_mat.sum(axis=1)))
+        # tree1 = cKDTree(self.marker,boxsize=[self.Lx,self.Ly])
+        # tree2 = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
+        # dist = tree1.sparse_distance_matrix(tree2, max_distance=self.r0*4,output_type='coo_matrix')
 
-        px = np.cos(self.orient[dist.col]-self.pointing)
-        py = np.sin(self.orient[dist.col]-self.pointing)
-        px_mat = sparse.coo_matrix((px,(dist.row,dist.col)), shape=dist.get_shape())
-        py_mat = sparse.coo_matrix((py,(dist.row,dist.col)), shape=dist.get_shape())
-        self.px = np.squeeze(np.asarray(px_mat.sum(axis=1)))
-        self.py = np.squeeze(np.asarray(py_mat.sum(axis=1)))
+        # rho = np.ones(self.N)[dist.col]
+        # rho_mat = sparse.coo_matrix((rho,(dist.row,dist.col)), shape=dist.get_shape())
+        # self.rho = np.squeeze(np.asarray(rho_mat.sum(axis=1)))
 
-        v_loc = np.sqrt(self.dxp**2+self.dyp**2)[dist.col]
-        F_loc = self.stress[dist.col]
-        dop = np.mean(self.or_traj,axis=0)
-        D_loc = (dop**2)[dist.col]
-        v_mat = sparse.coo_matrix((v_loc,(dist.row,dist.col)), shape=dist.get_shape())
-        F_mat = sparse.coo_matrix((F_loc,(dist.row,dist.col)), shape=dist.get_shape())
-        D_mat = sparse.coo_matrix((D_loc,(dist.row,dist.col)), shape=dist.get_shape())
+        # px = np.cos(self.orient[dist.col]-self.pointing)
+        # py = np.sin(self.orient[dist.col]-self.pointing)
+        # px_mat = sparse.coo_matrix((px,(dist.row,dist.col)), shape=dist.get_shape())
+        # py_mat = sparse.coo_matrix((py,(dist.row,dist.col)), shape=dist.get_shape())
+        # self.px = np.squeeze(np.asarray(px_mat.sum(axis=1)))
+        # self.py = np.squeeze(np.asarray(py_mat.sum(axis=1)))
 
-        v_loc = np.squeeze(np.asarray(v_mat.sum(axis=1)))
-        self.F_loc = np.squeeze(np.asarray(F_mat.sum(axis=1)))
-        D_loc = np.squeeze(np.asarray(D_mat.sum(axis=1)))
-        self.v_loc = np.divide(v_loc,self.rho,out=np.zeros_like(v_loc), where=self.rho!=0)
-        self.D_loc = np.divide(D_loc,self.rho,out=np.zeros_like(D_loc), where=self.rho!=0)
+        # v_loc = np.sqrt(self.dxp**2+self.dyp**2)[dist.col]
+        # F_loc = self.stress[dist.col]
+        # dop = np.mean(self.or_traj,axis=0)
+        # D_loc = (dop**2)[dist.col]
+        # v_mat = sparse.coo_matrix((v_loc,(dist.row,dist.col)), shape=dist.get_shape())
+        # F_mat = sparse.coo_matrix((F_loc,(dist.row,dist.col)), shape=dist.get_shape())
+        # D_mat = sparse.coo_matrix((D_loc,(dist.row,dist.col)), shape=dist.get_shape())
+
+        # v_loc = np.squeeze(np.asarray(v_mat.sum(axis=1)))
+        # self.F_loc = np.squeeze(np.asarray(F_mat.sum(axis=1)))
+        # D_loc = np.squeeze(np.asarray(D_mat.sum(axis=1)))
+        # self.v_loc = np.divide(v_loc,self.rho,out=np.zeros_like(v_loc), where=self.rho!=0)
+        # self.D_loc = np.divide(D_loc,self.rho,out=np.zeros_like(D_loc), where=self.rho!=0)
 
 
         cluster_flag = self.find_cluster()
-
+        self.cluster_current = cluster_flag
+        self.cluster_out = np.sum(self.cluster_previous*(~self.cluster_current))
+        self.cluster_in = np.sum(~self.cluster_previous*(self.cluster_current))
+        self.cluster_previous = cluster_flag
         Cpos = self.pos[cluster_flag]
         Cpos[:,0] = (Cpos[:,0]-self.pos_tr[0]-self.Lx/2)%self.Lx - self.Lx/2
         Cpos[:,1] = (Cpos[:,1]-self.pos_tr[1]-self.Ly/2)%self.Ly - self.Ly/2
@@ -421,40 +427,47 @@ class AGran:
         Lx_init = self.Lx
         Ly_init = self.Ly
         r_tr_init = self.r_tr
+        pos_tr_init = self.pos_tr
 
         self.Lx = 4*Lx_init
         self.Ly = 4*Lx_init
         self.r_tr = 4*r_tr_init
+        self.pos_tr = 4*pos_tr_init
         self.initialize()
 
 
-        for i in trange(10000):
-            self.Lx = Lx_init*(1+3*(9999-i)/10000)
-            self.Ly = Ly_init*(1+3*(9999-i)/10000)
-            self.r_tr = r_tr_init*(1+3*(9999-i)/10000)
-            self.pos *=(1+3*(9999-i)/10000)/(1+3*(10000-i)/10000)
-            self.update()
+
+
+        tree = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
+        # treeall = cKDTree(np.concatenate([pos,wall]),boxsize=[Lx,Ly])
+        dist = tree.sparse_distance_matrix(tree, max_distance=self.r0*3.2,output_type='coo_matrix')
+        while (len(dist.col)>self.N):
+            filt = (dist.col!=dist.row)
+            newx = np.random.uniform(0,self.Lx,size=1)
+            newy = np.random.uniform(0,self.Ly,size=1)
+            while (np.sqrt((newx-self.Lx/2)**2+(newy-self.Ly/2)**2)<self.r_tr+2*self.r0):
+                newx = self.pos[dist.col[filt][0]][0] = np.random.uniform(0,self.Lx,size=1)
+                newy = self.pos[dist.col[filt][0]][1] = np.random.uniform(0,self.Ly,size=1)
+                
+            self.pos[dist.col[filt][0]][0] = newx
+            self.pos[dist.col[filt][0]][1] = newy
+            self.set_coord()
 
             tree = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
-            # treeall = cKDTree(np.concatenate([pos,wall]),boxsize=[Lx,Ly])
-            dist = tree.sparse_distance_matrix(tree, max_distance=self.r0*2*2**(1/6),output_type='coo_matrix')
-            while (len(dist.col)>self.N):
-                filt = (dist.col!=dist.row)
-                newx = np.random.uniform(0,self.Lx,size=1)
-                newy = np.random.uniform(0,self.Ly,size=1)
-                while (np.sqrt((newx-self.Lx/2)**2+(newy-self.Ly/2)**2)<self.r_tr+2*self.r0):
-                    newx = self.pos[dist.col[filt][0]][0] = np.random.uniform(0,self.Lx,size=1)
-                    newy = self.pos[dist.col[filt][0]][1] = np.random.uniform(0,self.Ly,size=1)
-                    
-                self.pos[dist.col[filt][0]][0] = newx
-                self.pos[dist.col[filt][0]][1] = newy
-                self.set_coord()
-
-                tree = cKDTree(self.pos,boxsize=[self.Lx,self.Ly])
-            #     treeall = cKDTree(np.concatenate([pos,wall]),boxsize=[Lx,Ly])
-                dist = tree.sparse_distance_matrix(tree, max_distance=self.r0*1.9*2**(1/6),output_type='coo_matrix')
+        #     treeall = cKDTree(np.concatenate([pos,wall]),boxsize=[Lx,Ly])
+            dist = tree.sparse_distance_matrix(tree, max_distance=self.r0*1.9*2**(1/6),output_type='coo_matrix')
 
 
+        N_step = 5000
+        for i in range(N_step):
+            self.Lx = Lx_init*(1+3*(N_step-1-i)/N_step)
+            self.Ly = Ly_init*(1+3*(N_step-1-i)/N_step)
+            self.r_tr = r_tr_init*(1+3*(N_step-1-i)/N_step)
+            self.pos *=(1+3*(N_step-1-i)/N_step)/(1+3*(N_step-i)/N_step)
+            self.pos_tr *=(1+3*(N_step-1-i)/N_step)/(1+3*(N_step-i)/N_step)
+            self.update()
+
+            
 
 
 
