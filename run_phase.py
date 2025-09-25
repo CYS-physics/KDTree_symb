@@ -38,11 +38,11 @@ Y_tr = 0
 
 # dx = 5/np.sqrt(rho)
 dx = 2/np.sqrt(rho)
-Nmark = 10
+Nmark = int(np.ceil(S1.Lx/S1.r0))
 marker = np.zeros((Nmark**2,2))
-for i in range(Nmark):
-    for j in range(Nmark):
-        marker[Nmark*i+j,:] = np.array([dx*i,dx*j])
+for i in range(Nmark-1):
+    for j in range(Nmark-1):
+        marker[Nmark*i+j,:] = np.array([(S1.r0)*i,(S1.r0)*j])
 
 tree1 = cKDTree(marker,boxsize=[S1.Lx,S1.Ly])
 Nmax = np.ceil((dx/S1.r0)**2)
@@ -90,64 +90,25 @@ for i in range(N_measure):
     # for k in range(N_hist):
     tree2 = cKDTree(S1.pos,boxsize=[S1.Lx,S1.Ly])
     dist = tree1.sparse_distance_matrix(tree2, max_distance=dx,output_type='coo_matrix')
-    _, indices1 = tree2.query(S1.pos,k=7)
-    _, indices2 = tree2.query(marker,k=7)
+    _, indices1 = tree2.query(S1.pos,k=7,distance_upper_bound=S1.r0*3)
+    _, indices2 = tree2.query(marker,k=1)
 
 
     count = np.ones(S1.N)[dist.col]
-    # px = np.cos(S1.orient[dist.col])
-    # py = np.sin(S1.orient[dist.col])
-    # Sx = np.cos(2*S1.orient[dist.col])
-    # Sy = np.sin(2*S1.orient[dist.col])
-
 
     count_mat = sparse.coo_matrix((count,(dist.row,dist.col)), shape=dist.get_shape())
-    # px_mat = sparse.coo_matrix((px,(dist.row,dist.col)), shape=dist.get_shape())
-    # py_mat = sparse.coo_matrix((py,(dist.row,dist.col)), shape=dist.get_shape())
-    # Sx_mat = sparse.coo_matrix((Sx,(dist.row,dist.col)), shape=dist.get_shape())
-    # Sy_mat = sparse.coo_matrix((Sy,(dist.row,dist.col)), shape=dist.get_shape())
-
+    
     density = np.squeeze(np.asarray(count_mat.sum(axis=1)))
-    # polx = np.squeeze(np.asarray(px_mat.sum(axis=1)))
-    # poly = np.squeeze(np.asarray(py_mat.sum(axis=1)))
-    # nemx = np.squeeze(np.asarray(Sx_mat.sum(axis=1)))
-    # nemy = np.squeeze(np.asarray(Sy_mat.sum(axis=1)))
-    # polxn = polx/density
-    # polyn = poly/density
-    # nemxn = nemx/density
-    # nemyn = nemy/density
-
-    # polxn[np.isnan(polxn)]=0
-    # polyn[np.isnan(polyn)]=0
-    # nemxn[np.isnan(nemxn)]=0   
-    # nemyn[np.isnan(nemyn)]=0
+  
 
     density = density.reshape(Nmark,Nmark)
-    # polx = polx.reshape(Nmark,Nmark)
-    # poly = poly.reshape(Nmark,Nmark)
-    # nemx = nemx.reshape(Nmark,Nmark)
-    # nemy = nemy.reshape(Nmark,Nmark)
-    # polxn = polxn.reshape(Nmark,Nmark)
-    # polyn = polyn.reshape(Nmark,Nmark)
-    # nemxn = nemxn.reshape(Nmark,Nmark)
-    # nemyn = nemyn.reshape(Nmark,Nmark)
-
     
     dens_hist_temp,_=np.histogram(density,bins=cbins)
-    # pol_hist_temp,_ = np.histogram(polx**2+poly**2,bins=sbins)
-    # nem_hist_temp,_ = np.histogram(nemx**2+nemy**2,bins=sbins)
-    # poln_hist_temp,_ = np.histogram(polxn**2+polyn**2,bins=ebins)
-    # nemn_hist_temp,_ = np.histogram(nemxn**2+nemyn**2,bins=ebins)
-
     dens_hist+=dens_hist_temp
-    # pol_hist[:,k] += pol_hist_temp
-    # nem_hist[:,k] += nem_hist_temp
-    # poln_hist[:,k] += poln_hist_temp
-    # nemn_hist[:,k] += nemn_hist_temp
 
     neighbor_orient = S1.orient[indices1]
-    pmag1 = np.sqrt((np.sum(np.cos(neighbor_orient),axis=1)**2+np.sum(np.sin(neighbor_orient),axis=1)**2))/7
-    nmag1 = np.sqrt((np.sum(np.cos(2*neighbor_orient),axis=1)**2+np.sum(np.sin(2*neighbor_orient),axis=1)**2))/7
+    pmag1 = np.sqrt((np.mean(np.cos(neighbor_orient),axis=1)**2+np.mean(np.sin(neighbor_orient),axis=1)**2))
+    nmag1 = np.sqrt((np.mean(np.cos(2*neighbor_orient),axis=1)**2+np.mean(np.sin(2*neighbor_orient),axis=1)**2))
 
     pol_hist_temp,_ = np.histogram(pmag1,bins=ebins)
     nem_hist_temp,_ = np.histogram(nmag1,bins=ebins)
@@ -158,19 +119,6 @@ for i in range(N_measure):
     nemn_hist_temp,_ = np.histogram(nmag1[indices2],bins=ebins)
     poln_hist += poln_hist_temp
     nemn_hist += nemn_hist_temp
-
-    # corr_dens[0] += np.mean(density**2)
-    # corr_pol[0] += np.mean(polx**2+poly**2)
-    # corr_nem[0] += np.mean(nemx**2+nemy**2)
-    # corr_poln[0] += np.mean(polxn**2+polyn**2)
-    # corr_nemn[0] += np.mean(nemxn**2+nemyn**2)
-    # for j in range(Nmark-1):
-    #     corr_dens[j+1] += (np.mean(density[:-j-1,:]*density[j+1:,:])+np.mean(density[:,:-j-1]*density[:,j+1:]))/2
-    #     corr_pol[j+1] += (np.mean(polx[:-j-1,:]*polx[j+1:,:]+poly[:-j-1,:]*poly[j+1:,:])+np.mean(polx[:,:-j-1]*polx[:,j+1:]+poly[:,:-j-1]*poly[:,j+1:]))/2
-    #     corr_nem[j+1] += (np.mean(nemx[:-j-1,:]*nemx[j+1:,:]+nemy[:-j-1,:]*nemy[j+1:,:])+np.mean(nemx[:,:-j-1]*nemx[:,j+1:]+nemy[:,:-j-1]*nemy[:,j+1:]))/2
-    #     corr_poln[j+1] += (np.mean(polxn[:-j-1,:]*polxn[j+1:,:]+polyn[:-j-1,:]*polyn[j+1:,:])+np.mean(polxn[:,:-j-1]*polxn[:,j+1:]+polyn[:,:-j-1]*polyn[:,j+1:]))/2
-    #     corr_nemn[j+1] += (np.mean(nemxn[:-j-1,:]*nemxn[j+1:,:]+nemyn[:-j-1,:]*nemyn[j+1:,:])+np.mean(nemxn[:,:-j-1]*nemxn[:,j+1:]+nemyn[:,:-j-1]*nemyn[:,j+1:]))/2
-
 
 
     dxp_traj[i] = dxp
